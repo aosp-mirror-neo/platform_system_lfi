@@ -15,17 +15,53 @@
 //
 
 #include <stdlib.h>
-#include <unistd.h>
 
+#define LFI_SYS_exit  93
+#define LFI_SYS_brk   214
 #define LFI_SYS_pause 1024
 
-__attribute__((noreturn)) static void *
-lfi_pause(void *arg)
+// Abort just calls exit(1) for now
+void abort()
 {
-    (void) arg;
-    syscall(LFI_SYS_pause);
+    asm volatile (
+        "mov x0, #1\n"
+        "mov x8, %0\n"
+        "svc #0"
+        :
+        : "i"(LFI_SYS_exit)
+        : "x0", "x8"
+    );
+    __builtin_unreachable();
+}
+
+__attribute__((noreturn)) static void
+lfi_pause(void)
+{
+    asm volatile (
+        "mov x8, %0\n"
+        "svc #0"
+        :
+        : "i"(LFI_SYS_pause)
+        : "x8"
+    );
     while (1) {
     }
+}
+
+void *
+lfi_brk(void *end_data)
+{
+    void *r;
+    asm volatile (
+        "mov x8, %1\n"
+        "mov x0, %2\n"
+        "svc #0\n"
+        "mov %0, x0"
+        : "=r"(r)
+        : "i"(LFI_SYS_brk), "r"(end_data)
+        : "x0", "x8", "memory"
+    );
+    return r;
 }
 
 void *
@@ -73,16 +109,7 @@ _lfi_ret(void)
     );
 }
 
-void *symbols[] = {
-    &_lfi_malloc,
-    &_lfi_realloc,
-    &_lfi_calloc,
-    &_lfi_free,
-    &_lfi_ret,
-};
-
-void
-_start()
+void runtime_main(void)
 {
-    lfi_pause(NULL);
+    lfi_pause();
 }
