@@ -1,0 +1,12 @@
+{
+  "presubmit": [
+    {
+      "name": "MctsMediaV2TestCases",
+      "options": [
+        {
+          "instrumentation-arg": "codec-prefix:=c2.android.inproc.opus.decoder"
+        }
+      ]
+    }
+  ]
+}
